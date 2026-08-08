@@ -1,0 +1,72 @@
+#include <reg51.h>
+
+sbit ERROR_LED = P1^0;
+sbit RX_LED = P1^1;
+
+void UART_Init(void)
+{
+    TMOD = 0x20;       // Timer 1, Mode 2
+    TH1 = 0xFD;        // 9600 baud
+    SCON = 0x50;       // UART Mode 1, receiver enabled
+    TR1 = 1;            // Start Timer 1
+}
+
+void UART_SendChar(char ch)
+{
+    SBUF = ch;
+
+    while(TI == 0);
+
+    TI = 0;
+}
+
+unsigned char UART_ReceiveChar(char *ch)
+{
+    unsigned int timeout = 0;
+
+    while(RI == 0)
+    {
+        timeout++;
+
+        if(timeout > 50000)
+        {
+            return 0;       // Timeout
+        }
+    }
+
+    *ch = SBUF;
+    RI = 0;
+
+    return 1;               // Data received
+}
+
+void main(void)
+{
+    char received_data;
+
+    ERROR_LED = 0;
+    RX_LED = 0;
+
+    UART_Init();
+
+    UART_SendChar('H');
+    UART_SendChar('i');
+
+    while(1)
+    {
+        if(UART_ReceiveChar(&received_data))
+        {
+            RX_LED = 1;
+            ERROR_LED = 0;
+
+            UART_SendChar(received_data);
+        }
+        else
+        {
+            ERROR_LED = 1;
+            RX_LED = 0;
+
+            UART_SendChar('E');
+        }
+    }
+}
